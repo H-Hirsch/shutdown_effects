@@ -7,15 +7,15 @@ library(ivs)
 library(zoo)
 
 # import data
-crs_0 <- read.csv("/Users/henryhirsch/Henry/Work/2023/Regulatory Studies Center/projects/5. Effects of Govt. Shutdowns on Rule Reviewing/data sets/CR Data/CRs_number_length_duration_5.csv")
+crs_0 <- read.csv("/Users/henryhirsch/Henry/Work/2023 Regulatory Studies Center/projects/5. Effects of Govt. Shutdowns on Rule Reviewing/data sets/CR Data/CRs_number_length_duration_5.csv")
 
-reviews_0 <- read.csv("/Users/henryhirsch/Henry/Work/2023/Regulatory Studies Center/projects/5. Effects of Govt. Shutdowns on Rule Reviewing/data sets/OIRA Review Data/1981_to_2023.csv")
+reviews_0 <- read.csv("/Users/henryhirsch/Henry/Work/2023 Regulatory Studies Center/projects/5. Effects of Govt. Shutdowns on Rule Reviewing/data sets/OIRA Review Data/1981_to_2023.csv")
 
-shutdowns_0 <- read.csv("/Users/henryhirsch/Henry/Work/2023/Regulatory Studies Center/projects/5. Effects of Govt. Shutdowns on Rule Reviewing/data sets/Shutdown Data/shutdown_2.csv")
+shutdowns_0 <- read.csv("/Users/henryhirsch/Henry/Work/2023 Regulatory Studies Center/projects/5. Effects of Govt. Shutdowns on Rule Reviewing/data sets/Shutdown Data/shutdown_2.csv")
 
-trends_0 <- read.csv("/Users/henryhirsch/Henry/Work/2023/Regulatory Studies Center/projects/5. Effects of Govt. Shutdowns on Rule Reviewing/data sets/Google Trends Data/all_google_data(normalized).csv", skip = 1)
+trends_0 <- read.csv("/Users/henryhirsch/Henry/Work/2023 Regulatory Studies Center/projects/5. Effects of Govt. Shutdowns on Rule Reviewing/data sets/Google Trends Data/all_google_data(normalized).csv", skip = 1)
 
-complete_daily_0 <- read.csv("/Users/henryhirsch/Henry/Work/2023/Regulatory Studies Center/projects/5. Effects of Govt. Shutdowns on Rule Reviewing/data sets/Google Trends Data/complete_daily_data.csv")
+complete_daily_0 <- read.csv("/Users/henryhirsch/Henry/Work/2023 Regulatory Studies Center/projects/5. Effects of Govt. Shutdowns on Rule Reviewing/data sets/Google Trends Data/complete_daily_data.csv")
 
 # remove rows with NA values
 crs <- crs_0[complete.cases(crs_0), ]
@@ -150,10 +150,10 @@ reviews$days_in_interval <- time_length(reviews$date_interval, unit = "days")
 # figure out how many reviews were completed during each interval
 # use %within% from lubridate? or use data.table to do non-equi update join?
 
-# # create start date for awareness window
-# govt_behavior <- govt_behavior %>%
-#   mutate(
-#     start_awareness = start_date - 7)
+# create start date for awareness window
+govt_behavior <- govt_behavior %>%
+  mutate(
+    start_awareness = start_date - 7)
 
 # summary statistics for complete_daily
 summary(complete_daily$value)
@@ -185,7 +185,7 @@ dot1 <- ggplot(complete_daily, aes(x = date, y = value)) +
   theme_minimal()
 dot1
 
-# plot dot plot
+# plot
 dot2 <- ggplot(complete_daily, aes(x = date, y = value)) +
   geom_vline(data = vline_data, aes(xintercept = as.Date(date)), color = "purple", linetype = "dotted") +
   geom_point(size = 1, aes(color = percentile_cutoff)) +
@@ -195,17 +195,78 @@ dot2 <- ggplot(complete_daily, aes(x = date, y = value)) +
        y = "Search Prevalence") +
   theme_minimal()
 dot2
-
-# recent reviews
-# recent_review <- reviews %>% filter(date_completed >= "2006-01-01")
-
-# plot dot plot
-# reviews$y_value <- 1
-# dot3 <- ggplot(reviews, aes(x = date_completed, y = y_value)) +
-#   geom_vline(data = vline_data, aes(xintercept = as.Date(date)), color = "purple", linetype = "dotted") +
-#   geom_point(size = 0.5, aes(color = "black")) +
-#   labs(title = "Google Searches for 'Government Shutdown'",
-#        x = "Date",
-#        y = "Search Prevalence") +
-#   theme_minimal()
-# dot3
+ 
+ # count completed reviews by day
+ daily_reviews <- reviews %>%
+   filter(!is.na(date_completed)) %>%
+   count(date_completed, name = "n_reviews") %>%
+   complete(
+     date_completed = seq(
+       min(date_completed),
+       max(date_completed),
+       by = "day"
+     ),
+     fill = list(n_reviews = 0)
+   )
+ 
+ # plot
+ dot3 <- ggplot(daily_reviews,
+                aes(x = date_completed, y = n_reviews)) +
+   geom_line(color = "blue", linewidth = 0.4) +
+   geom_vline(
+     data = vline_data,
+     aes(xintercept = date),
+     color = "purple",
+     linetype = "dotted",
+     alpha = 0.5
+   ) +
+   labs(
+     title = "Daily OIRA Review Completions",
+     x = "Date",
+     y = "Number of Reviews Completed"
+   ) +
+   theme_minimal()
+ 
+ dot3
+ 
+ # crop dot3
+ dot3 <- dot3 +
+   coord_cartesian(
+     xlim = as.Date(c("2006-01-01", "2023-12-31"))
+   )
+ 
+ dot3
+ 
+ # plot
+ dot4 <- ggplot(daily_reviews,
+                aes(x = date_completed, y = n_reviews)) +
+   geom_rect(
+     data = shutdowns,
+     aes(
+       xmin = date_funding_ended,
+       xmax = date_funding_restored,
+       ymin = -Inf,
+       ymax = Inf
+     ),
+     inherit.aes = FALSE,
+     fill = "red",
+     alpha = 0.15
+   ) +
+   geom_line(color = "blue", linewidth = 0.4) +
+   coord_cartesian(
+     xlim = as.Date(c("2006-01-01", "2023-12-31"))
+   ) +
+   labs(
+     title = "Daily OIRA Review Completions and Government Shutdowns",
+     x = "Date",
+     y = "Number of Reviews Completed"
+   ) +
+   theme_minimal()
+ 
+ dot4
+ 
+# save plots as PNGs
+ ggsave("dot1.png", plot = dot1, width = 10, height = 6, dpi = 300)
+ ggsave("dot2.png", plot = dot2, width = 10, height = 6, dpi = 300)
+ ggsave("dot3.png", plot = dot3, width = 10, height = 6, dpi = 300)
+ ggsave("dot4.png", plot = dot4, width = 10, height = 6, dpi = 300)

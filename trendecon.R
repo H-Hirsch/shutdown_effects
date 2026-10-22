@@ -1,7 +1,7 @@
 # clear environment
 rm(list=ls())
 
-# install packages
+# load packages
 library(gtrendsR)
 library(trendecon)
 
